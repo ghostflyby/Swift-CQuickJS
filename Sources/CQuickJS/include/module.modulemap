@@ -1,0 +1,4 @@
+module CQuickJS {
+    umbrella header "cquickjs.h"
+    export *
+}
