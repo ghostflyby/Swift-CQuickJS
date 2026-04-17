@@ -16,11 +16,13 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "CQuickJSStatic",
-            path: "dist/cquickjs-static.xcframework"
+            url: "https://github.com/ghostflyby/Swift-CQuickJS/releases/download/0.14.0-pack.1/cquickjs-static.xcframework.zip",
+            checksum: "0a0e4593f8cb84724052cf20990bde27901c04d0f73327d778117bffe6f58210"
         ),
         .binaryTarget(
             name: "CQuickJSDynamic",
-            path: "dist/cquickjs-dynamic.xcframework"
+            url: "https://github.com/ghostflyby/Swift-CQuickJS/releases/download/0.14.0-pack.1/cquickjs-dynamic.xcframework.zip",
+            checksum: "d52dbd15b386acda2adb7002d5eaa6fb95a26c4f11f3bf578a1cfa34b814dd9c"
         ),
         .systemLibrary(
             name: "CQuickJSSystem",
@@ -29,15 +31,6 @@ let package = Package(
             providers: [
                 .brew(["quickjs-ng"]),
             ]
-        ),
-        .testTarget(
-            name: "CQuickJSTests",
-            dependencies: ["CQuickJSStatic"]
-        ),
-        .testTarget(
-            name: "CQuickJSDynamicTests",
-            dependencies: ["CQuickJSDynamic"]
-        ),
-    ],
-    swiftLanguageVersions: [.v5]
+        )
+    ]
 )
