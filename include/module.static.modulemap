@@ -1,4 +1,4 @@
-module CQuickJS {
+module CQuickJSStatic {
     umbrella header "cquickjs.h"
     export *
 }

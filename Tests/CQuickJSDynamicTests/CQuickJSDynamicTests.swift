@@ -1,8 +1,8 @@
+import CQuickJSDynamic
 import Testing
-import CQuickJSStatic
 
 @Test
-func canCreateRuntimeAndContext() throws {
+func canCreateRuntimeAndContextFromDynamicFramework() throws {
     let runtime = JS_NewRuntime()
     #expect(runtime != nil)
 

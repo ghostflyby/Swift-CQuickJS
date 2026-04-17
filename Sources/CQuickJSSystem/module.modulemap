@@ -1,0 +1,4 @@
+module CQuickJSSystem [system] {
+    umbrella header "CQuickJSSystemShim.h"
+    export *
+}

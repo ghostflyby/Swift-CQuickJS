@@ -1,51 +1,118 @@
 # Swift-CQuickJS
 
-`Swift-CQuickJS` is a Swift Package Manager package that exposes the
-`quickjs-ng` C API as a Swift-importable `CQuickJS` module.
+`Swift-CQuickJS` packages the `quickjs-ng` C API for Swift Package Manager.
+It provides prebuilt Apple binary targets and a system-library target.
 
-The default implementation is vendored as a git submodule:
+QuickJS source is not vendored in this repository. Release workflows checkout
+the selected upstream release from <https://github.com/quickjs-ng/quickjs> into
+`vendor/quickjs` during the build.
 
-- Upstream: <https://github.com/quickjs-ng/quickjs>
-- Path: `Vendor/quickjs`
+## Products
 
-## Package Layout
+- `CQuickJSStatic`: static XCFramework binary target.
+- `CQuickJSDynamic`: dynamic XCFramework binary target.
+- `CQuickJSSystem`: system library target that imports an installed `quickjs-ng`
+  library through `pkg-config`.
 
-- Product: `CQuickJS`
-- Target: `CQuickJS`
-- Public header: `Sources/CQuickJS/include/cquickjs.h`
+The local binary targets are expected at:
 
-The target currently builds the core QuickJS engine sources:
+- `dist/cquickjs-static.xcframework`
+- `dist/cquickjs-dynamic.xcframework`
 
-- `Vendor/quickjs/dtoa.c`
-- `Vendor/quickjs/libregexp.c`
-- `Vendor/quickjs/libunicode.c`
-- `Vendor/quickjs/quickjs.c`
+Supported binary slices match the current build scripts:
+
+- macOS arm64 + x86_64, minimum macOS 11.0.
+- iOS arm64, minimum iOS 13.0.
+- iOS Simulator arm64 + x86_64, minimum iOS 13.0.
+
+## Usage
+
+Choose one product and import its matching module:
+
+```swift
+import CQuickJSStatic
+```
+
+or:
+
+```swift
+import CQuickJSDynamic
+```
+
+or, when linking against a system installation:
+
+```swift
+import CQuickJSSystem
+```
+
+## Building Artifacts
+
+Checkout QuickJS-NG source first:
+
+```bash
+git clone https://github.com/quickjs-ng/quickjs vendor/quickjs
+```
+
+Build all Apple slices and package both XCFrameworks:
+
+```bash
+scripts/build-all.sh
+```
+
+The script writes intermediate build output to `out/` and distributable
+artifacts to `dist/`.
+
+You can also point at an existing checkout:
+
+```bash
+QUICKJS_SOURCE_DIR=/path/to/quickjs scripts/build-all.sh
+```
+
+To build one slice:
+
+```bash
+scripts/build-one-arch.sh macos-arm64
+```
+
+Supported slice names are:
+
+- `macos-arm64`
+- `macos-x86_64`
+- `ios-arm64`
+- `ios-simulator-arm64`
+- `ios-simulator-x86_64`
+
+## Release Manifest
+
+GitHub Actions contains two workflows:
+
+- `build`: manually builds a selected upstream ref, packages static and dynamic
+  XCFrameworks, creates a release, and commits a URL-based `Package.swift`.
+- `check-upstream`: manually or daily checks the latest upstream release and
+  triggers `build` when no package release exists for that upstream version.
+
+When `packaging_version` is not provided, the workflow publishes tags as:
+
+```text
+<upstream-version>-pack.<number>
+```
+
+The `<number>` suffix is incremented from existing release tags.
+
+For a release that hosts zipped XCFrameworks remotely, compute or reuse the
+checksums in `dist/*.checksum` and generate a URL-based manifest:
+
+```bash
+scripts/write-package-swift.sh \
+  <static-xcframework-zip-url> <static-checksum> \
+  <dynamic-xcframework-zip-url> <dynamic-checksum>
+```
 
 ## Downstream Override
 
-This package is structured so downstream users can replace the implementation
-by editing the package locally instead of changing their own targets.
+This package keeps the QuickJS implementation isolated so downstream users can
+edit this package and replace either `Vendor/quickjs` or the build scripts
+without changing their own package graph.
 
-Typical flow:
-
-1. Add the package as a dependency.
-2. Use SwiftPM's package editing workflow to edit `Swift-CQuickJS`.
-3. Replace `Vendor/quickjs` or adjust the `CQuickJS` target sources/header
-   export to point at your own implementation.
-
-As long as the package continues to expose a `CQuickJS` module, downstream
-Swift targets can keep importing `CQuickJS` unchanged.
-
-## Cloning
-
-This repository uses a submodule. Clone with:
-
-```bash
-git clone --recurse-submodules <repo-url>
-```
-
-Or after cloning:
-
-```bash
-git submodule update --init --recursive
-```
+When overriding, keep the public module names stable if downstream code imports
+`CQuickJSStatic`, `CQuickJSDynamic`, or `CQuickJSSystem`.

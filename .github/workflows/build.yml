@@ -1,0 +1,242 @@
+name: build
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_repo:
+        description: Upstream QuickJS-NG repository.
+        required: true
+        default: quickjs-ng/quickjs
+      upstream_ref:
+        description: Upstream ref to build. Leave empty to use the latest upstream release tag.
+        required: false
+        default: ""
+      packaging_revision:
+        description: Packaging revision suffix used when packaging_version is empty. Leave empty to use the next pack revision for the upstream version.
+        required: false
+        default: ""
+      packaging_version:
+        description: Release tag for this packaged artifact. Leave empty to infer it from the upstream version.
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build-slice:
+    name: build ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - slice: macos-x86_64
+            runner: macos-14
+            platform: macos-x86_64
+          - slice: macos-arm64
+            runner: macos-14
+            platform: macos-arm64
+          - slice: ios-arm64
+            runner: macos-14
+            platform: ios-arm64
+          - slice: ios-simulator-arm64
+            runner: macos-14
+            platform: ios-simulator-arm64
+          - slice: ios-simulator-x86_64
+            runner: macos-14
+            platform: ios-simulator-x86_64
+    steps:
+      - name: Checkout packaging repository
+        uses: actions/checkout@v6
+
+      - name: Resolve upstream ref
+        id: resolve-upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_REPO: ${{ inputs.upstream_repo }}
+          UPSTREAM_REF: ${{ inputs.upstream_ref }}
+        run: |
+          ref="${UPSTREAM_REF}"
+          if [[ -z "${ref}" ]]; then
+            ref="$(gh api "repos/${UPSTREAM_REPO}/releases/latest" --jq .tag_name)"
+          fi
+          echo "ref=${ref}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout upstream QuickJS-NG
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ inputs.upstream_repo }}
+          ref: ${{ steps.resolve-upstream.outputs.ref }}
+          path: vendor/quickjs
+
+      - name: Build slice
+        env:
+          QUICKJS_SOURCE_DIR: ${{ github.workspace }}/vendor/quickjs
+          UPSTREAM_SOURCE_DIR: ${{ github.workspace }}/vendor/quickjs
+          UPSTREAM_REPO: ${{ inputs.upstream_repo }}
+          UPSTREAM_REF: ${{ steps.resolve-upstream.outputs.ref }}
+          PACKAGING_VERSION: ${{ inputs.packaging_version }}
+        run: scripts/build-one-arch.sh ${{ matrix.slice }}
+
+      - name: Resolve source metadata
+        env:
+          QUICKJS_SOURCE_DIR: ${{ github.workspace }}/vendor/quickjs
+          UPSTREAM_SOURCE_DIR: ${{ github.workspace }}/vendor/quickjs
+          UPSTREAM_REPO: ${{ inputs.upstream_repo }}
+          UPSTREAM_REF: ${{ steps.resolve-upstream.outputs.ref }}
+          PACKAGING_VERSION: ${{ inputs.packaging_version }}
+        run: |
+          scripts/resolve-version.sh --env >> "${GITHUB_ENV}"
+          scripts/resolve-version.sh --env > "out/${{ matrix.platform }}/source.env"
+
+      - name: Upload slice
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.platform }}
+          path: out/${{ matrix.platform }}
+
+  package:
+    name: package
+    needs: build-slice
+    runs-on: macos-14
+    steps:
+      - name: Checkout packaging repository
+        uses: actions/checkout@v6
+
+      - name: Download arm64 slice
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-arm64
+          path: out/macos-arm64
+
+      - name: Download x86_64 slice
+        uses: actions/download-artifact@v8
+        with:
+          name: macos-x86_64
+          path: out/macos-x86_64
+
+      - name: Download iOS device slice
+        uses: actions/download-artifact@v8
+        with:
+          name: ios-arm64
+          path: out/ios-arm64
+
+      - name: Download iOS simulator arm64 slice
+        uses: actions/download-artifact@v8
+        with:
+          name: ios-simulator-arm64
+          path: out/ios-simulator-arm64
+
+      - name: Download iOS simulator x86_64 slice
+        uses: actions/download-artifact@v8
+        with:
+          name: ios-simulator-x86_64
+          path: out/ios-simulator-x86_64
+
+      - name: Import source metadata
+        run: grep -E '^(UPSTREAM_REPO|UPSTREAM_REF|UPSTREAM_VERSION|UPSTREAM_COMMIT)=' out/macos-arm64/source.env >> "${GITHUB_ENV}"
+
+      - name: Resolve packaging version
+        env:
+          PACKAGING_VERSION: ${{ inputs.packaging_version }}
+          PACKAGING_REVISION: ${{ inputs.packaging_revision }}
+        run: |
+          set -o pipefail
+
+          version="${PACKAGING_VERSION}"
+          if [[ -z "${version}" ]]; then
+            if [[ -z "${UPSTREAM_VERSION}" || "${UPSTREAM_VERSION}" == "unknown" ]]; then
+              echo "cannot infer packaging_version because UPSTREAM_VERSION is ${UPSTREAM_VERSION:-empty}" >&2
+              exit 1
+            fi
+
+            revision="${PACKAGING_REVISION}"
+            if [[ -z "${revision}" ]]; then
+              latest_revision="$(
+                git ls-remote --tags origin "refs/tags/${UPSTREAM_VERSION}-pack.*" |
+                  while read -r _ ref; do
+                    tag="${ref#refs/tags/}"
+                    tag="${tag%^\{\}}"
+                    suffix="${tag#"${UPSTREAM_VERSION}-pack."}"
+                    if [[ "${suffix}" != "${tag}" && "${suffix}" =~ ^[0-9]+$ ]]; then
+                      printf '%s\n' "${suffix}"
+                    fi
+                  done |
+                  sort -n |
+                  tail -n 1
+              )"
+              if [[ -z "${latest_revision}" ]]; then
+                revision="1"
+              else
+                revision="$((latest_revision + 1))"
+              fi
+            elif [[ ! "${revision}" =~ ^[0-9]+$ ]]; then
+              echo "packaging_revision must be numeric, got ${revision}" >&2
+              exit 1
+            fi
+
+            version="${UPSTREAM_VERSION}-pack.${revision}"
+          fi
+          echo "PACKAGING_VERSION=${version}" >> "${GITHUB_ENV}"
+
+      - name: Package XCFramework
+        run: scripts/package-xcframework.sh
+
+      - name: Generate SwiftPM manifest
+        run: |
+          static_checksum="$(swift package compute-checksum dist/cquickjs-static.xcframework.zip)"
+          dynamic_checksum="$(swift package compute-checksum dist/cquickjs-dynamic.xcframework.zip)"
+          release_base_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${PACKAGING_VERSION}"
+          scripts/write-package-swift.sh \
+            "${release_base_url}/cquickjs-static.xcframework.zip" "${static_checksum}" \
+            "${release_base_url}/cquickjs-dynamic.xcframework.zip" "${dynamic_checksum}" \
+            Package.swift
+
+      - name: Commit and tag release manifest
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/${PACKAGING_VERSION}" >/dev/null 2>&1; then
+            echo "tag already exists: ${PACKAGING_VERSION}; skipping manifest commit and tag."
+          else
+            if [[ "${GITHUB_REF_TYPE}" != "branch" ]]; then
+              echo "release manifest updates must run from a branch ref, got ${GITHUB_REF_TYPE}" >&2
+              exit 1
+            fi
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add Package.swift
+            if git diff --cached --quiet -- Package.swift; then
+              echo "Package.swift already matches ${PACKAGING_VERSION}; tagging current commit."
+            else
+              git commit -m "release: ${PACKAGING_VERSION}"
+            fi
+
+            git tag "${PACKAGING_VERSION}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+            git push origin "refs/tags/${PACKAGING_VERSION}"
+          fi
+
+          scripts/write-build-metadata.sh dist/build-metadata.json
+
+      - name: Upload distribution artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: cquickjs-xcframework
+          path: |
+            dist/cquickjs-static.xcframework.zip
+            dist/cquickjs-dynamic.xcframework.zip
+            dist/LICENSE.txt
+            dist/build-metadata.json
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="Static and dynamic macOS/iOS XCFrameworks for ${UPSTREAM_REPO}@${UPSTREAM_REF}."
+          if gh release view "${PACKAGING_VERSION}" >/dev/null 2>&1; then
+            gh release upload "${PACKAGING_VERSION}" dist/cquickjs-static.xcframework.zip dist/cquickjs-dynamic.xcframework.zip dist/LICENSE.txt dist/build-metadata.json --clobber
+          else
+            gh release create "${PACKAGING_VERSION}" dist/cquickjs-static.xcframework.zip dist/cquickjs-dynamic.xcframework.zip dist/LICENSE.txt dist/build-metadata.json --title "${PACKAGING_VERSION}" --notes "${notes}"
+          fi
