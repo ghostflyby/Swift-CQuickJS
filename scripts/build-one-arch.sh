@@ -2,7 +2,8 @@
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
-  printf 'usage: %s <macos-arm64|macos-x86_64|ios-arm64|ios-simulator-arm64|ios-simulator-x86_64>\n' "$0" >&2
+  printf 'usage: %s <slice>\n' "$0" >&2
+  printf 'supported slices: macos-arm64 macos-x86_64 ios-arm64 ios-simulator-arm64 ios-simulator-x86_64 maccatalyst-arm64 maccatalyst-x86_64 tvos-arm64 tvos-simulator-arm64 tvos-simulator-x86_64 watchos-arm64_32 watchos-simulator-arm64 watchos-simulator-x86_64 visionos-arm64 visionos-simulator-arm64 visionos-simulator-x86_64\n' >&2
   exit 2
 fi
 
@@ -37,6 +38,72 @@ case "${slice}" in
     arch="x86_64"
     sdk="iphonesimulator"
     target="x86_64-apple-ios${IOS_DEPLOYMENT_TARGET:-13.0}-simulator"
+    ;;
+  maccatalyst-arm64)
+    platform="maccatalyst-arm64"
+    arch="arm64"
+    sdk="macosx"
+    target="arm64-apple-ios${MACCATALYST_DEPLOYMENT_TARGET:-13.1}-macabi"
+    ;;
+  maccatalyst-x86_64)
+    platform="maccatalyst-x86_64"
+    arch="x86_64"
+    sdk="macosx"
+    target="x86_64-apple-ios${MACCATALYST_DEPLOYMENT_TARGET:-13.1}-macabi"
+    ;;
+  tvos-arm64)
+    platform="tvos-arm64"
+    arch="arm64"
+    sdk="appletvos"
+    target="arm64-apple-tvos${TVOS_DEPLOYMENT_TARGET:-13.0}"
+    ;;
+  tvos-simulator-arm64)
+    platform="tvos-simulator-arm64"
+    arch="arm64"
+    sdk="appletvsimulator"
+    target="arm64-apple-tvos${TVOS_DEPLOYMENT_TARGET:-13.0}-simulator"
+    ;;
+  tvos-simulator-x86_64)
+    platform="tvos-simulator-x86_64"
+    arch="x86_64"
+    sdk="appletvsimulator"
+    target="x86_64-apple-tvos${TVOS_DEPLOYMENT_TARGET:-13.0}-simulator"
+    ;;
+  watchos-arm64_32)
+    platform="watchos-arm64_32"
+    arch="arm64_32"
+    sdk="watchos"
+    target="arm64_32-apple-watchos${WATCHOS_DEPLOYMENT_TARGET:-6.0}"
+    ;;
+  watchos-simulator-arm64)
+    platform="watchos-simulator-arm64"
+    arch="arm64"
+    sdk="watchsimulator"
+    target="arm64-apple-watchos${WATCHOS_DEPLOYMENT_TARGET:-6.0}-simulator"
+    ;;
+  watchos-simulator-x86_64)
+    platform="watchos-simulator-x86_64"
+    arch="x86_64"
+    sdk="watchsimulator"
+    target="x86_64-apple-watchos${WATCHOS_DEPLOYMENT_TARGET:-6.0}-simulator"
+    ;;
+  visionos-arm64)
+    platform="visionos-arm64"
+    arch="arm64"
+    sdk="xros"
+    target="arm64-apple-xros${VISIONOS_DEPLOYMENT_TARGET:-1.0}"
+    ;;
+  visionos-simulator-arm64)
+    platform="visionos-simulator-arm64"
+    arch="arm64"
+    sdk="xrsimulator"
+    target="arm64-apple-xros${VISIONOS_DEPLOYMENT_TARGET:-1.0}-simulator"
+    ;;
+  visionos-simulator-x86_64)
+    platform="visionos-simulator-x86_64"
+    arch="x86_64"
+    sdk="xrsimulator"
+    target="x86_64-apple-xros${VISIONOS_DEPLOYMENT_TARGET:-1.0}-simulator"
     ;;
   *)
     printf 'unsupported slice: %s\n' "${slice}" >&2

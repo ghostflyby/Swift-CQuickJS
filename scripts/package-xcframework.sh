@@ -10,68 +10,67 @@ dynamic_xcframework_path="${dist_dir}/cquickjs-dynamic.xcframework"
 static_zip_path="${dist_dir}/cquickjs-static.xcframework.zip"
 dynamic_zip_path="${dist_dir}/cquickjs-dynamic.xcframework.zip"
 license_output_path="${dist_dir}/LICENSE.txt"
+packaging_dir="${out_dir}/packaging"
+static_packaging_dir="${packaging_dir}/static"
+dynamic_packaging_dir="${packaging_dir}/dynamic"
+dynamic_frameworks_dir="${packaging_dir}/dynamic-frameworks"
 
-macos_arm64_static_lib="${out_dir}/macos-arm64/static/lib/libcquickjs.a"
-macos_arm64_static_headers="${out_dir}/macos-arm64/static/include"
-macos_x86_64_static_lib="${out_dir}/macos-x86_64/static/lib/libcquickjs.a"
-macos_x86_64_static_headers="${out_dir}/macos-x86_64/static/include"
-ios_device_static_lib="${out_dir}/ios-arm64/static/lib/libcquickjs.a"
-ios_device_static_headers="${out_dir}/ios-arm64/static/include"
-ios_simulator_arm64_static_lib="${out_dir}/ios-simulator-arm64/static/lib/libcquickjs.a"
-ios_simulator_arm64_static_headers="${out_dir}/ios-simulator-arm64/static/include"
-ios_simulator_x86_64_static_lib="${out_dir}/ios-simulator-x86_64/static/lib/libcquickjs.a"
-ios_simulator_x86_64_static_headers="${out_dir}/ios-simulator-x86_64/static/include"
+required_slices=(
+  macos-arm64
+  macos-x86_64
+  ios-arm64
+  ios-simulator-arm64
+  ios-simulator-x86_64
+  maccatalyst-arm64
+  maccatalyst-x86_64
+  tvos-arm64
+  tvos-simulator-arm64
+  tvos-simulator-x86_64
+  watchos-arm64_32
+  watchos-simulator-arm64
+  watchos-simulator-x86_64
+  visionos-arm64
+  visionos-simulator-arm64
+  visionos-simulator-x86_64
+)
 
-macos_arm64_dynamic_lib="${out_dir}/macos-arm64/dynamic/lib/CQuickJSDynamic"
-macos_arm64_dynamic_headers="${out_dir}/macos-arm64/dynamic/include"
-macos_x86_64_dynamic_lib="${out_dir}/macos-x86_64/dynamic/lib/CQuickJSDynamic"
-macos_x86_64_dynamic_headers="${out_dir}/macos-x86_64/dynamic/include"
-ios_device_dynamic_lib="${out_dir}/ios-arm64/dynamic/lib/CQuickJSDynamic"
-ios_device_dynamic_headers="${out_dir}/ios-arm64/dynamic/include"
-ios_simulator_arm64_dynamic_lib="${out_dir}/ios-simulator-arm64/dynamic/lib/CQuickJSDynamic"
-ios_simulator_arm64_dynamic_headers="${out_dir}/ios-simulator-arm64/dynamic/include"
-ios_simulator_x86_64_dynamic_lib="${out_dir}/ios-simulator-x86_64/dynamic/lib/CQuickJSDynamic"
-ios_simulator_x86_64_dynamic_headers="${out_dir}/ios-simulator-x86_64/dynamic/include"
+static_args=()
+dynamic_args=()
 
-macos_universal_dir="${out_dir}/macos-universal"
-macos_static_universal_lib="${macos_universal_dir}/static/lib/libcquickjs.a"
-macos_static_universal_headers="${macos_universal_dir}/static/include"
-macos_dynamic_universal_lib="${macos_universal_dir}/dynamic/lib/CQuickJSDynamic"
-macos_dynamic_universal_headers="${macos_universal_dir}/dynamic/include"
-ios_simulator_universal_dir="${out_dir}/ios-simulator-universal"
-ios_simulator_static_universal_lib="${ios_simulator_universal_dir}/static/lib/libcquickjs.a"
-ios_simulator_static_universal_headers="${ios_simulator_universal_dir}/static/include"
-ios_simulator_dynamic_universal_lib="${ios_simulator_universal_dir}/dynamic/lib/CQuickJSDynamic"
-dynamic_frameworks_dir="${out_dir}/dynamic-frameworks"
-macos_dynamic_framework="${dynamic_frameworks_dir}/macos/CQuickJSDynamic.framework"
-ios_device_dynamic_framework="${dynamic_frameworks_dir}/ios/CQuickJSDynamic.framework"
-ios_simulator_dynamic_framework="${dynamic_frameworks_dir}/ios-simulator/CQuickJSDynamic.framework"
+static_lib_path() {
+  printf '%s/%s/static/lib/libcquickjs.a' "${out_dir}" "$1"
+}
 
-for path in \
-  "${macos_arm64_static_lib}" "${macos_arm64_static_headers}" \
-  "${macos_x86_64_static_lib}" "${macos_x86_64_static_headers}" \
-  "${ios_device_static_lib}" "${ios_device_static_headers}" \
-  "${ios_simulator_arm64_static_lib}" "${ios_simulator_arm64_static_headers}" \
-  "${ios_simulator_x86_64_static_lib}" "${ios_simulator_x86_64_static_headers}" \
-  "${macos_arm64_dynamic_lib}" "${macos_arm64_dynamic_headers}" \
-  "${macos_x86_64_dynamic_lib}" "${macos_x86_64_dynamic_headers}" \
-  "${ios_device_dynamic_lib}" "${ios_device_dynamic_headers}" \
-  "${ios_simulator_arm64_dynamic_lib}" "${ios_simulator_arm64_dynamic_headers}" \
-  "${ios_simulator_x86_64_dynamic_lib}" "${ios_simulator_x86_64_dynamic_headers}"; do
-  if [[ ! -e "${path}" ]]; then
-    printf 'missing required build output: %s\n' "${path}" >&2
-    exit 1
-  fi
+static_headers_path() {
+  printf '%s/%s/static/include' "${out_dir}" "$1"
+}
+
+dynamic_lib_path() {
+  printf '%s/%s/dynamic/lib/CQuickJSDynamic' "${out_dir}" "$1"
+}
+
+dynamic_headers_path() {
+  printf '%s/%s/dynamic/include' "${out_dir}" "$1"
+}
+
+for slice in "${required_slices[@]}"; do
+  for path in \
+    "$(static_lib_path "${slice}")" \
+    "$(static_headers_path "${slice}")" \
+    "$(dynamic_lib_path "${slice}")" \
+    "$(dynamic_headers_path "${slice}")"; do
+    if [[ ! -e "${path}" ]]; then
+      printf 'missing required build output: %s\n' "${path}" >&2
+      exit 1
+    fi
+  done
 done
 
 rm -rf \
   "${static_xcframework_path}" "${dynamic_xcframework_path}" \
   "${static_zip_path}" "${dynamic_zip_path}" "${license_output_path}" \
-  "${macos_universal_dir}" "${ios_simulator_universal_dir}" "${dynamic_frameworks_dir}"
-mkdir -p \
-  "${dist_dir}" \
-  "${macos_universal_dir}/static/lib" "${macos_universal_dir}/dynamic/lib" \
-  "${ios_simulator_universal_dir}/static/lib" "${ios_simulator_universal_dir}/dynamic/lib"
+  "${packaging_dir}"
+mkdir -p "${dist_dir}" "${static_packaging_dir}" "${dynamic_packaging_dir}" "${dynamic_frameworks_dir}"
 
 create_dynamic_framework() {
   local framework_path="$1"
@@ -130,39 +129,96 @@ MODULEMAP
   done < <(find "${dynamic_xcframework_path}" -mindepth 2 -maxdepth 2 -name 'CQuickJSDynamic.framework' -type d -print0)
 }
 
-rsync -a --delete "${macos_arm64_static_headers}/" "${macos_static_universal_headers}/"
-xcrun lipo -create "${macos_arm64_static_lib}" "${macos_x86_64_static_lib}" -output "${macos_static_universal_lib}"
-rsync -a --delete "${ios_simulator_arm64_static_headers}/" "${ios_simulator_static_universal_headers}/"
-xcrun lipo -create \
-  "${ios_simulator_arm64_static_lib}" \
-  "${ios_simulator_x86_64_static_lib}" \
-  -output "${ios_simulator_static_universal_lib}"
+make_static_slice_with_paths() {
+  local name="$1"
+  local headers_slice="$2"
+  shift 2
+  local libs=("$@")
+  local slice_dir="${static_packaging_dir}/${name}"
+  local output_lib="${slice_dir}/lib/libcquickjs.a"
+  local output_headers="${slice_dir}/include"
 
-xcodebuild -create-xcframework \
-  -library "${macos_static_universal_lib}" \
-  -headers "${macos_static_universal_headers}" \
-  -library "${ios_device_static_lib}" \
-  -headers "${ios_device_static_headers}" \
-  -library "${ios_simulator_static_universal_lib}" \
-  -headers "${ios_simulator_static_universal_headers}" \
-  -output "${static_xcframework_path}"
+  mkdir -p "${slice_dir}/lib" "${output_headers}"
+  rsync -a --delete "$(static_headers_path "${headers_slice}")/" "${output_headers}/"
+  if [[ "${#libs[@]}" -eq 1 ]]; then
+    cp "${libs[0]}" "${output_lib}"
+  else
+    xcrun lipo -create "${libs[@]}" -output "${output_lib}"
+  fi
 
-rsync -a --delete "${macos_arm64_dynamic_headers}/" "${macos_dynamic_universal_headers}/"
-xcrun lipo -create "${macos_arm64_dynamic_lib}" "${macos_x86_64_dynamic_lib}" -output "${macos_dynamic_universal_lib}"
-xcrun lipo -create \
-  "${ios_simulator_arm64_dynamic_lib}" \
-  "${ios_simulator_x86_64_dynamic_lib}" \
-  -output "${ios_simulator_dynamic_universal_lib}"
+  static_args+=(-library "${output_lib}" -headers "${output_headers}")
+}
 
-create_dynamic_framework "${macos_dynamic_framework}" "${macos_dynamic_universal_lib}" "${macos_dynamic_universal_headers}" "11.0"
-create_dynamic_framework "${ios_device_dynamic_framework}" "${ios_device_dynamic_lib}" "${ios_device_dynamic_headers}" "13.0"
-create_dynamic_framework "${ios_simulator_dynamic_framework}" "${ios_simulator_dynamic_universal_lib}" "${ios_simulator_arm64_dynamic_headers}" "13.0"
+make_dynamic_slice_with_paths() {
+  local name="$1"
+  local headers_slice="$2"
+  local minimum_os_version="$3"
+  shift 3
+  local libs=("$@")
+  local slice_dir="${dynamic_packaging_dir}/${name}"
+  local output_binary="${slice_dir}/CQuickJSDynamic"
+  local framework_path="${dynamic_frameworks_dir}/${name}/CQuickJSDynamic.framework"
 
-xcodebuild -create-xcframework \
-  -framework "${macos_dynamic_framework}" \
-  -framework "${ios_device_dynamic_framework}" \
-  -framework "${ios_simulator_dynamic_framework}" \
-  -output "${dynamic_xcframework_path}"
+  mkdir -p "${slice_dir}"
+  if [[ "${#libs[@]}" -eq 1 ]]; then
+    cp "${libs[0]}" "${output_binary}"
+  else
+    xcrun lipo -create "${libs[@]}" -output "${output_binary}"
+  fi
+
+  create_dynamic_framework "${framework_path}" "${output_binary}" "$(dynamic_headers_path "${headers_slice}")" "${minimum_os_version}"
+  dynamic_args+=(-framework "${framework_path}")
+}
+
+make_static_slice_with_paths macos macos-arm64 \
+  "$(static_lib_path macos-arm64)" \
+  "$(static_lib_path macos-x86_64)"
+make_static_slice_with_paths ios ios-arm64 "$(static_lib_path ios-arm64)"
+make_static_slice_with_paths ios-simulator ios-simulator-arm64 \
+  "$(static_lib_path ios-simulator-arm64)" \
+  "$(static_lib_path ios-simulator-x86_64)"
+make_static_slice_with_paths maccatalyst maccatalyst-arm64 \
+  "$(static_lib_path maccatalyst-arm64)" \
+  "$(static_lib_path maccatalyst-x86_64)"
+make_static_slice_with_paths tvos tvos-arm64 "$(static_lib_path tvos-arm64)"
+make_static_slice_with_paths tvos-simulator tvos-simulator-arm64 \
+  "$(static_lib_path tvos-simulator-arm64)" \
+  "$(static_lib_path tvos-simulator-x86_64)"
+make_static_slice_with_paths watchos watchos-arm64_32 "$(static_lib_path watchos-arm64_32)"
+make_static_slice_with_paths watchos-simulator watchos-simulator-arm64 \
+  "$(static_lib_path watchos-simulator-arm64)" \
+  "$(static_lib_path watchos-simulator-x86_64)"
+make_static_slice_with_paths visionos visionos-arm64 "$(static_lib_path visionos-arm64)"
+make_static_slice_with_paths visionos-simulator visionos-simulator-arm64 \
+  "$(static_lib_path visionos-simulator-arm64)" \
+  "$(static_lib_path visionos-simulator-x86_64)"
+
+xcodebuild -create-xcframework "${static_args[@]}" -output "${static_xcframework_path}"
+
+make_dynamic_slice_with_paths macos macos-arm64 "11.0" \
+  "$(dynamic_lib_path macos-arm64)" \
+  "$(dynamic_lib_path macos-x86_64)"
+make_dynamic_slice_with_paths ios ios-arm64 "13.0" "$(dynamic_lib_path ios-arm64)"
+make_dynamic_slice_with_paths ios-simulator ios-simulator-arm64 "13.0" \
+  "$(dynamic_lib_path ios-simulator-arm64)" \
+  "$(dynamic_lib_path ios-simulator-x86_64)"
+make_dynamic_slice_with_paths maccatalyst maccatalyst-arm64 "13.1" \
+  "$(dynamic_lib_path maccatalyst-arm64)" \
+  "$(dynamic_lib_path maccatalyst-x86_64)"
+make_dynamic_slice_with_paths tvos tvos-arm64 "13.0" "$(dynamic_lib_path tvos-arm64)"
+make_dynamic_slice_with_paths tvos-simulator tvos-simulator-arm64 "13.0" \
+  "$(dynamic_lib_path tvos-simulator-arm64)" \
+  "$(dynamic_lib_path tvos-simulator-x86_64)"
+make_dynamic_slice_with_paths watchos watchos-arm64_32 "6.0" "$(dynamic_lib_path watchos-arm64_32)"
+make_dynamic_slice_with_paths watchos-simulator watchos-simulator-arm64 "6.0" \
+  "$(dynamic_lib_path watchos-simulator-arm64)" \
+  "$(dynamic_lib_path watchos-simulator-x86_64)"
+make_dynamic_slice_with_paths visionos visionos-arm64 "1.0" "$(dynamic_lib_path visionos-arm64)"
+make_dynamic_slice_with_paths visionos-simulator visionos-simulator-arm64 "1.0" \
+  "$(dynamic_lib_path visionos-simulator-arm64)" \
+  "$(dynamic_lib_path visionos-simulator-x86_64)"
+
+xcodebuild -create-xcframework "${dynamic_args[@]}" -output "${dynamic_xcframework_path}"
 
 write_dynamic_slice_modulemaps
 

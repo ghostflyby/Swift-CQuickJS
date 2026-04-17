@@ -7,6 +7,9 @@ let package = Package(
     platforms: [
         .macOS(.v11),
         .iOS(.v13),
+        .tvOS(.v13),
+        .watchOS(.v6),
+        .visionOS(.v1),
     ],
     products: [
         .library(name: "CQuickJSStatic", targets: ["CQuickJSStatic"]),
