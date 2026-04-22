@@ -10,6 +10,7 @@ dynamic_xcframework_path="${dist_dir}/cquickjs-dynamic.xcframework"
 static_zip_path="${dist_dir}/cquickjs-static.xcframework.zip"
 dynamic_zip_path="${dist_dir}/cquickjs-dynamic.xcframework.zip"
 license_output_path="${dist_dir}/LICENSE.txt"
+third_party_notice_output_path="${dist_dir}/THIRD_PARTY_NOTICES.md"
 packaging_dir="${out_dir}/packaging"
 static_packaging_dir="${packaging_dir}/static"
 dynamic_packaging_dir="${packaging_dir}/dynamic"
@@ -68,7 +69,8 @@ done
 
 rm -rf \
   "${static_xcframework_path}" "${dynamic_xcframework_path}" \
-  "${static_zip_path}" "${dynamic_zip_path}" "${license_output_path}" \
+  "${static_zip_path}" "${dynamic_zip_path}" \
+  "${license_output_path}" "${third_party_notice_output_path}" \
   "${packaging_dir}"
 mkdir -p "${dist_dir}" "${static_packaging_dir}" "${dynamic_packaging_dir}" "${dynamic_frameworks_dir}"
 
@@ -222,9 +224,8 @@ xcodebuild -create-xcframework "${dynamic_args[@]}" -output "${dynamic_xcframewo
 
 write_dynamic_slice_modulemaps
 
-if [[ -f "${out_dir}/macos-arm64/LICENSE.txt" ]]; then
-  cp "${out_dir}/macos-arm64/LICENSE.txt" "${license_output_path}"
-fi
+cp "${repo_root}/LICENSE" "${license_output_path}"
+cp "${repo_root}/THIRD_PARTY_NOTICES.md" "${third_party_notice_output_path}"
 
 (
   cd "${dist_dir}"

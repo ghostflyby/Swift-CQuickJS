@@ -72,6 +72,7 @@ cat > "${output_path}" <<JSON
     "cquickjs-static.xcframework.zip",
     "cquickjs-dynamic.xcframework.zip",
     "LICENSE.txt",
+    "THIRD_PARTY_NOTICES.md",
     "build-metadata.json"
   ]
 }

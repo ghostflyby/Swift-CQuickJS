@@ -7,6 +7,11 @@ QuickJS source is not vendored in this repository. Release workflows checkout
 the selected upstream release from <https://github.com/quickjs-ng/quickjs> into
 `vendor/quickjs` during the build.
 
+This repository's wrapper code uses the same MIT license terms as upstream
+QuickJS-NG, with separate copyright ownership. Release artifacts include
+`LICENSE.txt` for the wrapper and `THIRD_PARTY_NOTICES.md` for upstream
+QuickJS-NG notices.
+
 ## Products
 
 - `CQuickJSStatic`: static XCFramework binary target.

@@ -236,6 +236,7 @@ jobs:
             dist/cquickjs-static.xcframework.zip
             dist/cquickjs-dynamic.xcframework.zip
             dist/LICENSE.txt
+            dist/THIRD_PARTY_NOTICES.md
             dist/build-metadata.json
 
       - name: Publish release
@@ -244,7 +245,7 @@ jobs:
         run: |
           notes="Static and dynamic Apple platform XCFrameworks for ${UPSTREAM_REPO}@${UPSTREAM_REF}."
           if gh release view "${PACKAGING_VERSION}" >/dev/null 2>&1; then
-            gh release upload "${PACKAGING_VERSION}" dist/cquickjs-static.xcframework.zip dist/cquickjs-dynamic.xcframework.zip dist/LICENSE.txt dist/build-metadata.json --clobber
+            gh release upload "${PACKAGING_VERSION}" dist/cquickjs-static.xcframework.zip dist/cquickjs-dynamic.xcframework.zip dist/LICENSE.txt dist/THIRD_PARTY_NOTICES.md dist/build-metadata.json --clobber
           else
-            gh release create "${PACKAGING_VERSION}" dist/cquickjs-static.xcframework.zip dist/cquickjs-dynamic.xcframework.zip dist/LICENSE.txt dist/build-metadata.json --title "${PACKAGING_VERSION}" --notes "${notes}"
+            gh release create "${PACKAGING_VERSION}" dist/cquickjs-static.xcframework.zip dist/cquickjs-dynamic.xcframework.zip dist/LICENSE.txt dist/THIRD_PARTY_NOTICES.md dist/build-metadata.json --title "${PACKAGING_VERSION}" --notes "${notes}"
           fi
